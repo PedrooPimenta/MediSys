@@ -1,99 +1,45 @@
-from medicSearch.models import Profile
-from django.db.models import Q
-from medicSearch.models.Speciality import Speciality
-from medicSearch.models.Profile import Profile, Rating
-from medicSearch.forms.MedicForm import MedicRatingForm
-from django.shortcuts import render, redirect
-from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from medicSearch.models import Profile, Rating
+from medicSearch.forms.MedicForm import MedicRatingForm
+from django.db.models import Q
+from django.core.paginator import Paginator
 
 def list_medics_view(request):
-    name = request.GET.get('name')
-    speciality = request.GET.get('speciality')
-    neighborhood = request.GET.get('neighborhood')
-    city = request.GET.get('city')
-    state = request.GET.get('state')
+    name = request.GET.get("name")
+    speciality = request.GET.get("speciality")
+    neighborhood = request.GET.get("neighborhood")
+    city = request.GET.get("city")
+    state = request.GET.get("state")
 
-    medics = Profile.objects.filter(role=2).all()
+    medics = Profile.objects.filter(role=2)
     if name is not None and name != '':
-        medics = medics.filter(Q(user__first_name__contains=name) |
-                               Q(user__username__contains=name))
+        medics = medics.filter(user__first_name__contains=name)
     if speciality is not None:
-        medics = medics.filter(speciality__id=speciality)
+        medics = medics.filter(specialties__id=speciality)
 
     if neighborhood is not None:
-        medics = medics.filter(address__neighborhood=neighborhood)
+        medics = medics.filter(addresses__neighborhood=neighborhood)
     else:
         if city is not None:
-            medics = medics.filter(address_neighborhood__city=city)
+            medics = medics.filter(addresses__neighborhood__city=city)
         elif state is not None:
-            medics = medics.filter(address_neighborhood__city__state=state)
-        if len(medics) > 0:
-            paginator = Paginator(medics, 8)
-            page = request.GET.get('page')
-            medics = paginator.get_page(page)
+            medics = medics.filter(addresses__neighborhood__city__state=state)
 
-            get_copy = request.GET.copy()
-            parameters = get_copy.pop('page', True) and get_copy.urlencode()
+    if len(medics) > 0:
+        paginator = Paginator(medics, 8)
+        page = request.GET.get('page')
+        medics = paginator.get_page(page)
 
-        context = {
-            'medics': medics,
-            'parameters': parameters
-        }
-        return render(request, template_name='medic/medics.html',
-                      context=context, status=200)
+    get_copy = request.GET.copy()
+    parameters = get_copy.pop('page', True) and get_copy.urlencode()
 
+    context = {
+        'medics': medics,
+        'parameters': parameters
+    }
 
-try:
-    speciality = Speciality()
-    speciality.name = "Endocrinologia"
-    speciality.save()
-except Exception as e:
-    print("Um erro ocorreu ao salvar uma nova especialidade. Descrição %s" % e)
-
-try:
-    medic = Profile.objects.filter(id=1).first()
-    medic.user.first_name = "João"
-    medic.user.last_name = "Victor"
-    medic.user.save()
-except Exception as e:
-    print("Um erro ocorreu ao editar um usuário. Descrição %s" % e)
-
-try:
-    Speciality.objects.filter(id=6).delete()
-except Exception as e:
-    print("Um erro ocorreu ao deletar uma especialidade. Descrição %s" % e)
-
-try:
-    profile = Profile.objects.filter(user__id=3).first()
-    profile.user.delete()
-except Exception as e:
-    print("Um erro ocorreu ao deletar um usuário. Descrição %s" % e)
-
-
-def remove_favorite_view(request):
-    page = request.POST.get("page")
-    id = request.POST.get("id")
-    try:
-        profile = Profile.objects.filter(user=request.user).first()
-        medic = Profile.objects.filter(user__id=id).first()
-        profile.favorites.remove(medic.user)
-        profile.save()
-        msg = "Favorito removido com sucesso."
-        _type = "success"
-    except Exception as e:
-        print("Erro %s" % e)
-        msg = "Um erro ocorreu ao remover o médico nos favoritos."
-        _type = "danger"
-
-    if page:
-        arguments = "?page=%s" % (page)
-    else:
-        arguments = "?page=1"
-    
-    arguments += "&msg=%s&type=%s" % (msg, _type)
-    return redirect(to='/profile/%s' % arguments)
-
+    return render(request, template_name='medic/medics.html', context=context, status=200)
 
 def add_favorite_view(request):
     page = request.POST.get("page")
@@ -103,6 +49,7 @@ def add_favorite_view(request):
     city = request.POST.get("city")
     state = request.POST.get("state")
     id = request.POST.get("id")
+
     try:
         profile = Profile.objects.filter(user=request.user).first()
         medic = Profile.objects.filter(user__id=id).first()
@@ -119,7 +66,6 @@ def add_favorite_view(request):
         arguments = "?page=%s" % (page)
     else:
         arguments = "?page=1"
-    
     if name:
         arguments += "&name=%s" % name
     if speciality:
@@ -130,50 +76,15 @@ def add_favorite_view(request):
         arguments += "&city=%s" % city
     if state:
         arguments += "&state=%s" % state
-    
+
     arguments += "&msg=%s&type=%s" % (msg, _type)
+
     return redirect(to='/medic/%s' % arguments)
-
-@login_required
-def rate_medic(request, medic_id=None):
-    medic = Profile.objects.filter(user__id=medic_id).first()
-    rating = Rating.objects.filter(
-        user=request.user, user_rated=medic.user).first()
-    message = None
-
-    initial = {'user': request.user, 'user_rated': medic.user}
-
-    if request.method == 'POST':
-        ratingForm = MedicRatingForm(
-            request.POST, instance=rating, initial=initial)
-    else:
-        ratingForm = MedicRatingForm(instance=rating, initial=initial)
-
-    if ratingForm.is_valid():
-        ratingForm.save()
-        message = {
-            'type': 'success',
-            'text': 'Avaliação realizada com sucesso.'
-        }
-    else:
-        if request.method == 'POST':
-            message = {
-                'type': 'danger',
-                'text': 'Erro ao avaliar.'
-            }
-
-    context = {
-        'ratingForm': ratingForm,
-        'medic': medic,
-        'message': message,
-    }
-
-    return render(request, template_name='medic/rating.html', context=context, status=200)
-
 
 def remove_favorite_view(request):
     page = request.POST.get("page")
     id = request.POST.get("id")
+
     try:
         profile = Profile.objects.filter(user=request.user).first()
         medic = Profile.objects.filter(user__id=id).first()
@@ -185,9 +96,40 @@ def remove_favorite_view(request):
         print("Erro %s" % e)
         msg = "Um erro ocorreu ao remover o médico nos favoritos."
         _type = "danger"
+
+
     if page:
         arguments = "?page=%s" % (page)
     else:
         arguments = "?page=1"
+
     arguments += "&msg=%s&type=%s" % (msg, _type)
+
     return redirect(to='/profile/%s' % arguments)
+
+@login_required
+def rate_medic(request, medic_id=None):
+    medic = Profile.objects.filter(user__id=medic_id).first()
+    rating = Rating.objects.filter(user=request.user, user_rated=medic.user).first()
+    message = None
+    initial = {'user': request.user, 'user_rated': medic.user}
+
+    if request.method == 'POST':
+        ratingForm = MedicRatingForm(request.POST, instance=rating, initial=initial)
+    else:
+        ratingForm = MedicRatingForm(instance=rating, initial=initial)
+
+    if ratingForm.is_valid():
+        ratingForm.save()
+        message = {'type': 'success', 'text': 'Avaliação salva com sucesso'}
+    else:
+        if request.method == 'POST':
+            message = {'type': 'danger', 'text': 'Erro ao salvar avaliação'}
+
+    context = {
+        'ratingForm': ratingForm,
+        'medic': medic,
+        'message': message
+    }
+
+    return render(request, template_name='medic/rating.html', context=context, status=200)

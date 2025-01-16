@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'medicSearch',
     'django_bootstrap5',
+    'social_django',
 ]
 
 MIDDLEWARE = [
@@ -64,6 +65,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -131,3 +134,35 @@ LOGIN_URL = '/login'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_URL = '/logout'
 LOGOUT_REDIRECT_URL = '/login'
+
+AUTHENTICATION_BACKENDS = [
+    'social_core.backends.google.GoogleOAuth2',
+    'social_core.backends.facebook.FacebookOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+SOCIAL_AUTH_FACEBOOK_KEY = "1422482328728215"  # App ID
+SOCIAL_AUTH_FACEBOOK_SECRET = "4ff1e7d2adf50d14f5303de3514c1207"
+SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']
+SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = { 
+ 'fields': 'id, name, email, picture.type(large), link'
+ }
+
+SOCIAL_AUTH_FACEBOOK_EXTRA_DATA = [                 
+('name', 'name'),
+ ('email', 'email'),
+ ('picture', 'picture'),
+
+ ]
+
+#GOOGLE
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '830524531530-h2hpnpn7katbm683u3ea4g7rcbj5q7p5.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'p35762659@gmail.com'
+EMAIL_HOST_PASSWORD = 'teste123testando'
+EMAIL_PORT = 587
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_USE_SSL = False

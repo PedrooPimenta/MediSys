@@ -9,4 +9,6 @@ class Neighborhood(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return '{} - {}'.format(self.name, self.city.name)
+        if self.city:
+            return '{} - {}'.format(self.name, self.city.name) 
+        return self.name
